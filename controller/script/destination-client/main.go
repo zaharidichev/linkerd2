@@ -71,6 +71,7 @@ func get(client pb.DestinationClient, req *pb.GetDestination) {
 			log.Printf("labels: %v", updateType.Add.MetricLabels)
 			for _, addr := range updateType.Add.Addrs {
 				log.Printf("- %s:%d", addrUtil.ProxyIPToString(addr.Addr.GetIp()), addr.Addr.Port)
+				log.Printf("  - weight: %d", addr.Weight)
 				log.Printf("  - labels: %v", addr.MetricLabels)
 				switch addr.GetProtocolHint().GetProtocol().(type) {
 				case *pb.ProtocolHint_H2_:

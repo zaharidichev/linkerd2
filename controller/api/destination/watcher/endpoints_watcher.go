@@ -225,6 +225,7 @@ func (ew *EndpointsWatcher) deleteEndpoints(obj interface{}) {
 }
 
 func (ew *EndpointsWatcher) newServicePublisher(service ServiceID) *servicePublisher {
+	ew.log.Debugf("Creating new service publisher %s", service)
 	return &servicePublisher{
 		id: service,
 		log: ew.log.WithFields(logging.Fields{
@@ -299,6 +300,7 @@ func (sp *servicePublisher) unsubscribe(srcPort Port, listener EndpointUpdateLis
 }
 
 func (sp *servicePublisher) newPortPublisher(srcPort Port) *portPublisher {
+	sp.log.Debugf("Creating new port publisher for port %d", srcPort)
 	targetPort := intstr.FromInt(int(srcPort))
 	svc, err := sp.k8sAPI.Svc().Lister().Services(sp.id.Namespace).Get(sp.id.Name)
 	exists := false

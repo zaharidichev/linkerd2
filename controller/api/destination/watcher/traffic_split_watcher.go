@@ -37,6 +37,7 @@ type (
 		pods   PodSet
 		weight string
 		parent *apexServicePublisher
+		log    *logging.Entry
 	}
 )
 
@@ -75,14 +76,16 @@ func (tsw *TrafficSplitWatcher) Subscribe(authority string, listener EndpointUpd
 		if err != nil {
 			return err
 		}
+		var trafficSplit *v1beta1.TrafficSplit
 		for _, ts := range trafficSplits {
 			// Use the first TrafficSplit we find for this service.  If there are more than one
 			// TrafficSplit resources for this service, disregard the others.
 			if ts.Spec.Service == service.Name {
-				asp = tsw.newApexServicePublisher(ts, authority)
+				trafficSplit = ts
 				break
 			}
 		}
+		asp = tsw.newApexServicePublisher(trafficSplit, authority)
 		tsw.services[authority] = asp
 	}
 	tsw.servicesMu.Unlock()
@@ -105,13 +108,14 @@ func (tsw *TrafficSplitWatcher) addTrafficSplit(obj interface{}) {
 
 	tsw.servicesMu.RLock()
 	defer tsw.servicesMu.RUnlock()
+
 	for authority, asp := range tsw.services {
 		service, _, err := GetServiceAndPort(authority)
 		if err != nil {
 			tsw.log.Errorf("Malformed authority in services map: %s", authority)
 			continue
 		}
-		if service.Name == trafficSplit.Name && service.Namespace == trafficSplit.Namespace {
+		if service.Name == trafficSplit.Spec.Service && service.Namespace == trafficSplit.Namespace {
 			asp.setTrafficSplit(trafficSplit)
 			break
 		}
@@ -129,7 +133,7 @@ func (tsw *TrafficSplitWatcher) deleteTrafficSplit(obj interface{}) {
 			tsw.log.Errorf("Malformed authority in services map: %s", authority)
 			continue
 		}
-		if service.Name == trafficSplit.Name && service.Namespace == trafficSplit.Namespace {
+		if service.Name == trafficSplit.Spec.Service && service.Namespace == trafficSplit.Namespace {
 			asp.setTrafficSplit(nil)
 			break
 		}
@@ -161,7 +165,6 @@ func (tsw *TrafficSplitWatcher) newApexServicePublisher(trafficSplit *v1beta1.Tr
 func (asp *apexServicePublisher) subscribe(listener EndpointUpdateListener) {
 	asp.mutex.Lock()
 	defer asp.mutex.Unlock()
-
 	asp.listeners = append(asp.listeners, listener)
 	if asp.exists {
 		if len(asp.pods) > 0 {
@@ -197,8 +200,18 @@ func (asp *apexServicePublisher) setTrafficSplit(trafficSplit *v1beta1.TrafficSp
 		asp.endpoints.Unsubscribe(leaf, listener)
 	}
 
+	// We temporarily release the lock so that we can accept an update that
+	// comes synchronously when we subscribe.
+	asp.mutex.Unlock()
+	asp.Remove(asp.pods)
+	asp.mutex.Lock()
+
 	if trafficSplit == nil {
+		// We temporarily release the lock so that we can accept an update that
+		// comes synchronously when we subscribe.
+		asp.mutex.Unlock()
 		asp.endpoints.Subscribe(asp.authority, asp)
+		asp.mutex.Lock()
 		asp.leafListeners = map[string]EndpointUpdateListener{asp.authority: asp}
 		return
 	}
@@ -211,8 +224,12 @@ func (asp *apexServicePublisher) setTrafficSplit(trafficSplit *v1beta1.TrafficSp
 	}
 	for _, backend := range trafficSplit.Spec.Backends {
 		leafAuthority := fmt.Sprintf("%s.%s.svc.cluster.local:%d", backend.Service, trafficSplit.Namespace, port)
-		listener := asp.newLeafListener(backend.Weight)
+		listener := asp.newLeafListener(backend.Weight, leafAuthority)
+		// We temporarily release the lock so that we can accept an update that
+		// comes synchronously when we subscribe.
+		asp.mutex.Unlock()
 		asp.endpoints.Subscribe(leafAuthority, listener)
+		asp.mutex.Lock()
 		asp.leafListeners[leafAuthority] = listener
 	}
 }
@@ -236,11 +253,12 @@ func (asp *apexServicePublisher) Remove(set PodSet) {
 	asp.mutex.Lock()
 	defer asp.mutex.Unlock()
 
-	for id := range set {
-		delete(asp.pods, id)
-	}
 	for _, listener := range asp.listeners {
 		listener.Remove(set)
+	}
+
+	for id := range set {
+		delete(asp.pods, id)
 	}
 }
 
@@ -256,11 +274,12 @@ func (asp *apexServicePublisher) NoEndpoints(exists bool) {
 	}
 }
 
-func (asp *apexServicePublisher) newLeafListener(weight string) *leafListener {
+func (asp *apexServicePublisher) newLeafListener(weight string, leafAuthority string) *leafListener {
 	return &leafListener{
 		parent: asp,
 		pods:   make(PodSet),
 		weight: weight,
+		log:    asp.log.WithField("leaf-service", leafAuthority),
 	}
 }
 

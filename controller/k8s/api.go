@@ -80,6 +80,8 @@ type API struct {
 	sharedInformers   informers.SharedInformerFactory
 	spSharedInformers sp.SharedInformerFactory
 	tsSharedInformers ts.SharedInformerFactory
+
+	stop chan struct{}
 }
 
 // InitializeAPI creates Kubernetes clients and returns an initialized API wrapper.
@@ -207,9 +209,11 @@ func NewAPI(
 
 // Sync waits for all informers to be synced.
 func (api *API) Sync() {
-	api.sharedInformers.Start(nil)
-	api.spSharedInformers.Start(nil)
-	api.tsSharedInformers.Start(nil)
+	stop := make(chan struct{})
+	api.stop = stop
+	api.sharedInformers.Start(stop)
+	api.spSharedInformers.Start(stop)
+	api.tsSharedInformers.Start(stop)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -219,6 +223,10 @@ func (api *API) Sync() {
 		log.Fatal("failed to sync caches")
 	}
 	log.Infof("caches synced")
+}
+
+func (api *API) Stop() {
+	close(api.stop)
 }
 
 // NS provides access to a shared informer and lister for Namespaces.

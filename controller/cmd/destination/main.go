@@ -75,6 +75,7 @@ func main() {
 
 	<-stop
 
+	k8sAPI.Stop()
 	log.Infof("shutting down gRPC server on %s", *addr)
 	close(done)
 	server.GracefulStop()
