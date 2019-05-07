@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	addr := flag.String("addr", ":8088", "address to serve on")
+	addr := flag.String("addr", ":8089", "address to serve on")
 	metricsAddr := flag.String("metrics-addr", ":9998", "address to serve scrapable metrics on")
 	kubeConfigPath := flag.String("kubeconfig", "", "path to kube config")
 	controllerNamespace := flag.String("controller-namespace", "linkerd", "namespace in which Linkerd is installed")
@@ -42,19 +42,19 @@ func main() {
 		log.Fatalf("Failed to initialize K8s API: %s", err)
 	}
 
-	tapClient, cc, err := tap.NewClient("127.0.0.1:8089")
+	tapClient, cc, err := tap.NewClient("127.0.0.1:8088")
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
 	defer cc.Close()
 
-	server, lis, err := tap.NewHTTPSServer(*addr, tapClient, k8sAPI, *controllerNamespace, kubeConfigPath)
+	server, lis, err := tap.NewHTTPSServer(*addr, tapClient, k8sAPI, *controllerNamespace, *kubeConfigPath)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	grpcServer, grpcLis, err := tap.NewServer("127.0.0.1:8089", *tapPort, *controllerNamespace, k8sAPI)
+	grpcServer, grpcLis, err := tap.NewServer(":8088", *tapPort, *controllerNamespace, k8sAPI)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
@@ -62,7 +62,7 @@ func main() {
 	k8sAPI.Sync() // blocks until caches are synced
 
 	go func() {
-		log.Println("starting gRPC server on", "127.0.0.1:8089")
+		log.Println("starting gRPC server on", ":8088")
 		grpcServer.Serve(grpcLis)
 	}()
 

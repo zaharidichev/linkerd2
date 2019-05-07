@@ -1235,7 +1235,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:8c6d1ad8da2a354e1f2df907edb3bcd3e84c1a45b3cda2b527d2d1f8f33a287a"
+  digest = "1:7efd478acf75b0367dabdabac8d2b16d5276237d0487ac5016bea6ef1ed2fe09"
   name = "k8s.io/kube-aggregator"
   packages = [
     "pkg/apis/apiregistration",
@@ -1247,7 +1247,7 @@
     "pkg/client/clientset_generated/clientset/typed/apiregistration/v1beta1",
   ]
   pruneopts = ""
-  revision = "759a317643f9a9100e7943017a57b825fc186e2c"
+  revision = "1e8cd453c47488cff773c5ebcd70ca0b0ce054d9"
 
 [[projects]]
   branch = "master"
@@ -1256,14 +1256,6 @@
   packages = ["pkg/util/proto"]
   pruneopts = ""
   revision = "d8ea2fe547a448256204cfc68dfee7b26c720acb"
-
-[[projects]]
-  branch = "master"
-  digest = "1:f6c19347011ba9a072aa55f5c7fa630c0b88303ac4ca83008454aef95b0c2078"
-  name = "k8s.io/utils"
-  packages = ["pointer"]
-  pruneopts = ""
-  revision = "21c4ce38f2a793ec01e925ddc31216500183b773"
 
 [[projects]]
   digest = "1:321081b4a44256715f2b68411d8eda9a17f17ebfe6f0cc61d2cc52d11c08acfa"
@@ -1385,6 +1377,7 @@
     "k8s.io/helm/pkg/renderutil",
     "k8s.io/helm/pkg/timeconv",
     "k8s.io/klog",
+    "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1",
     "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset",
     "sigs.k8s.io/yaml",
   ]

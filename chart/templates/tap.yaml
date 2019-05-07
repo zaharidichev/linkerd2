@@ -21,6 +21,9 @@ spec:
   - name: grpc
     port: 8088
     targetPort: 8088
+  - name: https
+    port: 443
+    targetPort: 8089
 ---
 kind: Deployment
 apiVersion: extensions/v1beta1

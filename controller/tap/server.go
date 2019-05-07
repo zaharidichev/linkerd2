@@ -526,7 +526,7 @@ func NewHTTPSServer(
 		CABundle:             trustAnchor,
 	}
 
-	if registration != nil {
+	if registration.Name != "" {
 		log.Error("Updating registration...")
 		registration.Spec = apiServiceSpec
 
@@ -538,6 +538,10 @@ func NewHTTPSServer(
 		}
 	} else {
 		registration = &v1.APIService{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "v1alpha1.tap.linkerd.io",
+				Namespace: controllerNamespace,
+			},
 			Spec: apiServiceSpec,
 		}
 
@@ -570,6 +574,14 @@ func (s *grpcOverHTTPSServer) ServeHTTP(w http.ResponseWriter, req *http.Request
 	group := req.Header.Get("X-Remote-Group")
 
 	log.Errorf("Received authorized request from [%s] in group [%s]", user, group)
+	log.Errorf("%d", len(req.TLS.PeerCertificates))
+	if len(req.TLS.PeerCertificates) > 0 {
+		for _, clientCert := range req.TLS.PeerCertificates {
+			log.Errorf("Client Cert CN: %s", clientCert.Subject.CommonName)
+		}
+	} else {
+		log.Errorf("No peer certs :(")
+	}
 	fmt.Println("Ok")
 
 }
@@ -597,7 +609,7 @@ func tlsConfig(rootCA *pkgTls.CA, name, controllerNamespace, clientCAPem string)
 
 	return &tls.Config{
 		Certificates: []tls.Certificate{cert},
-		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientAuth:   tls.VerifyClientCertIfGiven,
 		ClientCAs:    clientCertPool,
 	}, nil
 }
