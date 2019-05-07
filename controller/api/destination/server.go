@@ -16,8 +16,8 @@ import (
 
 type (
 	server struct {
-		endpoints *watcher.EndpointsWatcher
-		profiles  *watcher.ProfileWatcher
+		trafficSplit *watcher.TrafficSplitWatcher
+		profiles     *watcher.ProfileWatcher
 
 		enableH2Upgrade     bool
 		controllerNS        string
@@ -53,10 +53,11 @@ func NewServer(
 		"component": "server",
 	})
 	endpoints := watcher.NewEndpointsWatcher(k8sAPI, log)
+	trafficSplit := watcher.NewTrafficSplitWatcher(endpoints, k8sAPI, log)
 	profiles := watcher.NewProfileWatcher(k8sAPI, log)
 
 	srv := server{
-		endpoints,
+		trafficSplit,
 		profiles,
 		enableH2Upgrade,
 		controllerNS,
@@ -94,12 +95,12 @@ func (s *server) Get(dest *pb.GetDestination, stream pb.Destination_GetServer) e
 		return err
 	}
 
-	err = s.endpoints.Subscribe(dest.GetPath(), translator)
+	err = s.trafficSplit.Subscribe(dest.GetPath(), translator)
 	if err != nil {
 		log.Errorf("Failed to subscribe to %s: %s", dest.GetPath(), err)
 		return err
 	}
-	defer s.endpoints.Unsubscribe(dest.GetPath(), translator)
+	defer s.trafficSplit.Unsubscribe(dest.GetPath(), translator)
 
 	select {
 	case <-s.shutdown:

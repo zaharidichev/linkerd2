@@ -333,11 +333,11 @@ func (api *API) SPAvailable() bool {
 }
 
 // TS provides access to a shared informer and lister for TrafficSplits.
-func (api *API) TS() spinformers.ServiceProfileInformer {
-	if api.sp == nil {
-		panic("SP informer not configured")
+func (api *API) TS() tsinformers.TrafficSplitInformer {
+	if api.ts == nil {
+		panic("TS informer not configured")
 	}
-	return api.sp
+	return api.ts
 }
 
 // GetObjects returns a list of Kubernetes objects, given a namespace, type, and name.

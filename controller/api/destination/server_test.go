@@ -37,10 +37,11 @@ func makeServer(t *testing.T) *server {
 	log := logging.WithField("test", t.Name)
 
 	endpoints := watcher.NewEndpointsWatcher(k8sAPI, log)
+	trafficSplit := watcher.NewTrafficSplitWatcher(endpoints, k8sAPI, log)
 	profiles := watcher.NewProfileWatcher(k8sAPI, log)
 
 	return &server{
-		endpoints,
+		trafficSplit,
 		profiles,
 		false,
 		"linkerd",

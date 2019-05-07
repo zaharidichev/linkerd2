@@ -165,9 +165,11 @@ func (et *endpointTranslator) toWeightedAddr(address watcher.Address) (*pb.Weigh
 		return nil, err
 	}
 
+	weight := k8s.GetPodWeight(address.Pod)
+
 	return &pb.WeightedAddr{
 		Addr:         tcpAddr,
-		Weight:       defaultWeight,
+		Weight:       weight,
 		MetricLabels: labels,
 		TlsIdentity:  identity,
 		ProtocolHint: hint,
