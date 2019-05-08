@@ -2,6 +2,8 @@
 
 1. Install traffic split CRD: `kubectl apply -f trafficsplit-crd.yaml`
 2. (use Linkerd images with tag `dev-f23dcd96-alex` or build images off of this branch)
+  a. To build off of this branch, generate a github access token and then edit Dockerfile-go-deps and replace
+     USER with your github user name and TOKEN with your access token
 3. Install Linkerd `bin/linkerd install | kubectl apply -f -`
 4. Install modified booksapp from this branch: `bin/linkerd inject bookapp.yml | kubectl apply -f -`
 5. Observe that authors is sending to books v1: `bin/linkerd stat deploy --from deploy/authors` or view authors deployment detail in dashboard

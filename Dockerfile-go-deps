@@ -21,7 +21,7 @@ RUN GOPATH=${TEMP_GOPATH} bin/dep version
 # because it needs all our source files, which are not available here.
 COPY Gopkg.toml Gopkg.lock ./
 
-RUN git config --global url."https://adleong:277a2b460a8a06472fe5f87665cf284b069d3996@github.com".insteadOf "https://github.com"
+RUN git config --global url."https://USER:TOKEN@github.com".insteadOf "https://github.com"
 RUN \
   GOPATH=${TEMP_GOPATH} bin/dep ensure -vendor-only -v && \
   mv vendor/* /go/src/ && \
