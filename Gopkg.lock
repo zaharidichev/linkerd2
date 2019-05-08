@@ -152,8 +152,15 @@
     "gen/apis/trafficsplit",
     "gen/apis/trafficsplit/v1beta1",
     "gen/client/clientset/versioned",
+    "gen/client/clientset/versioned/fake",
     "gen/client/clientset/versioned/scheme",
     "gen/client/clientset/versioned/typed/trafficsplit/v1beta1",
+    "gen/client/clientset/versioned/typed/trafficsplit/v1beta1/fake",
+    "gen/client/informers/externalversions",
+    "gen/client/informers/externalversions/internalinterfaces",
+    "gen/client/informers/externalversions/trafficsplit",
+    "gen/client/informers/externalversions/trafficsplit/v1beta1",
+    "gen/client/listers/trafficsplit/v1beta1",
   ]
   pruneopts = ""
   revision = "f343a9934b56f50451a53c61dd3b704b589c2412"
@@ -1270,7 +1277,11 @@
     "github.com/containernetworking/cni/pkg/types",
     "github.com/containernetworking/cni/pkg/types/current",
     "github.com/containernetworking/cni/pkg/version",
+    "github.com/deislabs/smi-sdk-go/gen/apis/trafficsplit/v1beta1",
     "github.com/deislabs/smi-sdk-go/gen/client/clientset/versioned",
+    "github.com/deislabs/smi-sdk-go/gen/client/clientset/versioned/fake",
+    "github.com/deislabs/smi-sdk-go/gen/client/informers/externalversions",
+    "github.com/deislabs/smi-sdk-go/gen/client/informers/externalversions/trafficsplit/v1beta1",
     "github.com/emicklei/proto",
     "github.com/evanphx/json-patch",
     "github.com/fatih/color",
