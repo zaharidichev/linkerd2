@@ -1,12 +1,12 @@
 apiVersion: smi-spec.io/v1beta1
 kind: TrafficSplit
 metadata:
-  name: books-split
+  name: authors-split
   namespace: default
 spec:
-  service: books
+  service: authors
   backends:
-  - service: books-v1
+  - service: authors-v1
     weight: 500m
-  - service: books-v2
+  - service: authors-v2
     weight: 500m

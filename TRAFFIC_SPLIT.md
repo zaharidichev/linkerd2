@@ -5,9 +5,10 @@
   a. To build off of this branch, generate a github access token and then edit Dockerfile-go-deps and replace
      USER with your github user name and TOKEN with your access token
 3. Install Linkerd `bin/linkerd install | kubectl apply -f -`
-4. Install modified booksapp from this branch: `bin/linkerd inject bookapp.yml | kubectl apply -f -`
-5. Observe that authors is sending to books v1: `bin/linkerd stat deploy --from deploy/authors` or view authors deployment detail in dashboard
-6. Create 50-50 traffic split: `kubectl apply -f mysplit.yaml`
-7. Observe that authors is sending to books v1 and v2: `bin/linkerd stat deploy --from deploy/authors` (or observe in dashboard)
-8. Delete traffic split `kubectl delete -f mysplit.yaml`
-9. Observe that authors is sending to books v1: `bin/linkerd stat deploy --from deploy/authors` (or observe in dashboard)
+4. Install mysql backend: `kubectl apply -f mysql-backend.yml`
+5. Install modified booksapp `bin/linkerd inject mysql-app.yml | kubectl apply -f -`
+6. Navigate to books deploy detail in dashboard.  Note books is sending to authors-v1 and SR sucks.
+7. Create 50-50 traffic split: `kubectl apply -f mysplit.yaml`
+8. Observe on books deploy detail that traffic is now split between authors-v1 and authors-v2.  Note the SR improvement.
+9. Go full v2: `kubectl edit ts/authors-split` and remove the authors-v1 backend.
+10. Observe effects in the dashboard: all green!
