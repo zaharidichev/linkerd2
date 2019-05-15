@@ -20,7 +20,7 @@ This command installs Service Profiles into the Linkerd control plane. A
 cluster-wide Linkerd control-plane is a prerequisite. To confirm Service Profile
 support, verify "kubectl api-versions" outputs "linkerd.io/v1alpha1".`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return renderSP(os.Stdout, controlPlaneNamespace)
+			return renderSP(os.Stdout, rootOptions.controlPlaneNamespace)
 		},
 	}
 

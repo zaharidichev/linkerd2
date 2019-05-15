@@ -11,7 +11,7 @@ func TestRenderSP(t *testing.T) {
 		controlPlaneNamespace string
 		goldenFileName        string
 	}{
-		{controlPlaneNamespace, "install-sp_default.golden"},
+		{rootOptions.controlPlaneNamespace, "install-sp_default.golden"},
 		{"NAMESPACE", "install-sp_output.golden"},
 	}
 

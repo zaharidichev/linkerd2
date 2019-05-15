@@ -66,7 +66,7 @@ func newCmdDashboard() *cobra.Command {
 			// ensure we can connect to the public API before starting the proxy
 			checkPublicAPIClientOrRetryOrExit(time.Now().Add(options.wait), true)
 
-			k8sAPI, err := k8s.NewAPI(kubeconfigPath, kubeContext, 0)
+			k8sAPI, err := k8s.NewAPI(*rootOptions.configFlags.KubeConfig, *rootOptions.configFlags.Context, 0)
 			if err != nil {
 				return err
 			}
@@ -78,11 +78,11 @@ func newCmdDashboard() *cobra.Command {
 
 			portforward, err := k8s.NewPortForward(
 				k8sAPI,
-				controlPlaneNamespace,
+				rootOptions.controlPlaneNamespace,
 				webDeployment,
 				options.port,
 				webPort,
-				verbose,
+				rootOptions.verbose,
 			)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to initialize port-forward: %s\n", err)

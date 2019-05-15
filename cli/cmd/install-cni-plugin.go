@@ -142,7 +142,7 @@ func validateAndBuildCNIConfig(options *cniPluginOptions) (*installCNIPluginConf
 	}
 
 	return &installCNIPluginConfig{
-		Namespace:           controlPlaneNamespace,
+		Namespace:           rootOptions.controlPlaneNamespace,
 		CNIPluginImage:      options.taggedCNIPluginImage(),
 		LogLevel:            options.logLevel,
 		InboundPort:         options.inboundPort,

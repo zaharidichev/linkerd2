@@ -204,7 +204,7 @@ func (resourceTransformerInject) generateReport(reports []inject.Report, output 
 	sidecar := []string{}
 	udp := []string{}
 	injectDisabled := []string{}
-	warningsPrinted := verbose
+	warningsPrinted := rootOptions.verbose
 
 	for _, r := range reports {
 		if r.Injectable() {
@@ -241,27 +241,27 @@ func (resourceTransformerInject) generateReport(reports []inject.Report, output 
 
 	if len(hostNetwork) > 0 {
 		output.Write([]byte(fmt.Sprintf("%s \"hostNetwork: true\" detected in %s\n", warnStatus, strings.Join(hostNetwork, ", "))))
-	} else if verbose {
+	} else if rootOptions.verbose {
 		output.Write([]byte(fmt.Sprintf("%s %s\n", okStatus, hostNetworkDesc)))
 	}
 
 	if len(sidecar) > 0 {
 		output.Write([]byte(fmt.Sprintf("%s known 3rd party sidecar detected in %s\n", warnStatus, strings.Join(sidecar, ", "))))
-	} else if verbose {
+	} else if rootOptions.verbose {
 		output.Write([]byte(fmt.Sprintf("%s %s\n", okStatus, sidecarDesc)))
 	}
 
 	if len(injectDisabled) > 0 {
 		output.Write([]byte(fmt.Sprintf("%s \"%s: %s\" annotation set on %s\n",
 			warnStatus, k8s.ProxyInjectAnnotation, k8s.ProxyInjectDisabled, strings.Join(injectDisabled, ", "))))
-	} else if verbose {
+	} else if rootOptions.verbose {
 		output.Write([]byte(fmt.Sprintf("%s %s\n", okStatus, injectDisabledDesc)))
 	}
 
 	if len(injected) == 0 {
 		output.Write([]byte(fmt.Sprintf("%s no supported objects found\n", warnStatus)))
 		warningsPrinted = true
-	} else if verbose {
+	} else if rootOptions.verbose {
 		output.Write([]byte(fmt.Sprintf("%s %s\n", okStatus, unsupportedDesc)))
 	}
 
@@ -271,7 +271,7 @@ func (resourceTransformerInject) generateReport(reports []inject.Report, output 
 			verb = "use"
 		}
 		output.Write([]byte(fmt.Sprintf("%s %s %s \"protocol: UDP\"\n", warnStatus, strings.Join(udp, ", "), verb)))
-	} else if verbose {
+	} else if rootOptions.verbose {
 		output.Write([]byte(fmt.Sprintf("%s %s\n", okStatus, udpDesc)))
 	}
 

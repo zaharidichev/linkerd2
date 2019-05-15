@@ -158,11 +158,11 @@ func configureAndRunChecks(w io.Writer, stage string, options *checkOptions) err
 	}
 
 	hc := healthcheck.NewHealthChecker(checks, &healthcheck.Options{
-		ControlPlaneNamespace: controlPlaneNamespace,
+		ControlPlaneNamespace: rootOptions.controlPlaneNamespace,
 		DataPlaneNamespace:    options.namespace,
-		KubeConfig:            kubeconfigPath,
-		KubeContext:           kubeContext,
-		APIAddr:               apiAddr,
+		KubeConfig:            *rootOptions.configFlags.KubeConfig,
+		KubeContext:           *rootOptions.configFlags.Context,
+		APIAddr:               rootOptions.apiAddr,
 		VersionOverride:       options.versionOverride,
 		RetryDeadline:         time.Now().Add(options.wait),
 	})

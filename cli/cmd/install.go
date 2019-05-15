@@ -512,7 +512,7 @@ func (options *installOptions) buildValuesWithoutIdentity(configs *pb.All) (*ins
 		ProxyInjectDisabled:      k8s.ProxyInjectDisabled,
 
 		// Controller configuration:
-		Namespace:          controlPlaneNamespace,
+		Namespace:          rootOptions.controlPlaneNamespace,
 		UUID:               configs.GetInstall().GetUuid(),
 		ControllerReplicas: options.controllerReplicas,
 		ControllerLogLevel: options.controllerLogLevel,
@@ -637,7 +637,7 @@ func (values *installValues) render(w io.Writer, configs *pb.All) error {
 			IsInstall: true,
 			IsUpgrade: false,
 			Time:      timeconv.Now(),
-			Namespace: controlPlaneNamespace,
+			Namespace: rootOptions.controlPlaneNamespace,
 		},
 		KubeVersion: "",
 	}
@@ -693,7 +693,7 @@ func (options *installOptions) configs(identity *pb.IdentityContext) *pb.All {
 
 func (options *installOptions) globalConfig(identity *pb.IdentityContext) *pb.Global {
 	return &pb.Global{
-		LinkerdNamespace: controlPlaneNamespace,
+		LinkerdNamespace: rootOptions.controlPlaneNamespace,
 		CniEnabled:       options.noInitContainer,
 		Version:          options.controlPlaneVersion,
 		IdentityContext:  identity,
@@ -769,14 +769,14 @@ func (options *installOptions) proxyConfig() *pb.Proxy {
 // This bypasses the public API so that public API errors cannot cause us to
 // misdiagnose a controller error to indicate that no control plane exists.
 func exitIfClusterExists() {
-	k, err := k8s.NewAPI(kubeconfigPath, kubeContext, 0)
+	k, err := k8s.NewAPI(*rootOptions.configFlags.KubeConfig, *rootOptions.configFlags.Context, 0)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Unable to build a Kubernetes client to check for configuration. If this expected, use the --ignore-cluster flag.")
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
 	}
 
-	c := k.CoreV1().ConfigMaps(controlPlaneNamespace)
+	c := k.CoreV1().ConfigMaps(rootOptions.controlPlaneNamespace)
 	if _, err = c.Get(k8s.ConfigConfigMapName, metav1.GetOptions{}); err != nil {
 		if kerrors.IsNotFound(err) {
 			return
@@ -808,11 +808,11 @@ func exitIfNamespaceDoesNotExist() {
 		os.Exit(1)
 	}
 
-	err := hc.CheckNamespace(controlPlaneNamespace, true)
+	err := hc.CheckNamespace(rootOptions.controlPlaneNamespace, true)
 	if err != nil {
 		fmt.Fprintf(os.Stderr,
 			"Failed to find required control-plane namespace: %s. Run \"linkerd install config -l %s | kubectl apply -f -\" to create it (this requires cluster administration permissions).\nSee https://linkerd.io/2/getting-started/ for more information. Or use \"--skip-checks\" to proceed anyway.\n",
-			controlPlaneNamespace, controlPlaneNamespace,
+			rootOptions.controlPlaneNamespace, rootOptions.controlPlaneNamespace,
 		)
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
@@ -872,7 +872,7 @@ func (idopts *installIdentityOptions) validateAndBuild() (*installIdentityValues
 }
 
 func (idopts *installIdentityOptions) issuerName() string {
-	return fmt.Sprintf("identity.%s.%s", controlPlaneNamespace, idopts.trustDomain)
+	return fmt.Sprintf("identity.%s.%s", rootOptions.controlPlaneNamespace, idopts.trustDomain)
 }
 
 func (idopts *installIdentityOptions) genValues() (*installIdentityValues, error) {

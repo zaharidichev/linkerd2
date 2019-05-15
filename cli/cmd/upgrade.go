@@ -147,7 +147,7 @@ func upgradeRunE(options *upgradeOptions, stage string, flags *pflag.FlagSet) er
 			upgradeErrorf("Failed to parse Kubernetes objects from manifest %s: %s", options.manifests, err)
 		}
 	} else {
-		k, err = k8s.NewAPI(kubeconfigPath, kubeContext, 0)
+		k, err = k8s.NewAPI(*rootOptions.configFlags.KubeConfig, *rootOptions.configFlags.Context, 0)
 		if err != nil {
 			upgradeErrorf("Failed to create a kubernetes client: %s", err)
 		}
@@ -272,7 +272,7 @@ func repairInstall(generateUUID func() string, install *pb.Install) {
 // not available.
 func fetchConfigs(k kubernetes.Interface) (*pb.All, error) {
 	configMap, err := k.CoreV1().
-		ConfigMaps(controlPlaneNamespace).
+		ConfigMaps(rootOptions.controlPlaneNamespace).
 		Get(k8s.ConfigConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -319,7 +319,7 @@ func fetchIssuer(k kubernetes.Interface, trustPEM string) (string, string, time.
 	}
 
 	secret, err := k.CoreV1().
-		Secrets(controlPlaneNamespace).
+		Secrets(rootOptions.controlPlaneNamespace).
 		Get(k8s.IdentityIssuerSecretName, metav1.GetOptions{})
 	if err != nil {
 		return "", "", time.Time{}, err

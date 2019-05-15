@@ -99,7 +99,7 @@ func TestRender(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc // pin
 		t.Run(fmt.Sprintf("%d: %s", i, tc.goldenFileName), func(t *testing.T) {
-			controlPlaneNamespace = tc.configs.GetGlobal().GetLinkerdNamespace()
+			rootOptions.controlPlaneNamespace = tc.configs.GetGlobal().GetLinkerdNamespace()
 
 			var buf bytes.Buffer
 			if err := tc.values.render(&buf, tc.configs); err != nil {

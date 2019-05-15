@@ -14,6 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	k8sResource "k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 const (
@@ -35,11 +36,7 @@ var (
 	warnStatus = color.New(color.FgYellow, color.Bold).SprintFunc()("\u203C") // ‼
 	failStatus = color.New(color.FgRed, color.Bold).SprintFunc()("\u00D7")    // ×
 
-	controlPlaneNamespace string
-	apiAddr               string // An empty value means "use the Kubernetes configuration"
-	kubeconfigPath        string
-	kubeContext           string
-	verbose               bool
+	rootOptions = newRootFlags()
 
 	// These regexs are not as strict as they could be, but are a quick and dirty
 	// sanity check against illegal characters.
@@ -60,6 +57,26 @@ var (
 		)+$`))
 )
 
+type rootFlags struct {
+	controlPlaneNamespace string
+	apiAddr string
+	verbose               bool
+	configFlags           *genericclioptions.ConfigFlags
+}
+
+func newRootFlags() *rootFlags {
+	configFlags := genericclioptions.NewConfigFlags()
+	configFlags.Namespace = nil
+	configFlags.APIServer = nil
+
+	return &rootFlags{
+		controlPlaneNamespace: defaultNamespace,
+		apiAddr: "",
+		verbose:               false,
+		configFlags:           configFlags,
+	}
+}
+
 // RootCmd represents the root Cobra command
 var RootCmd = &cobra.Command{
 	Use:   "linkerd",
@@ -67,19 +84,19 @@ var RootCmd = &cobra.Command{
 	Long:  `linkerd manages the Linkerd service mesh.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// enable / disable logging
-		if verbose {
+		if rootOptions.verbose {
 			log.SetLevel(log.DebugLevel)
 		} else {
 			log.SetLevel(log.PanicLevel)
 		}
 
 		controlPlaneNamespaceFromEnv := os.Getenv("LINKERD_NAMESPACE")
-		if controlPlaneNamespace == defaultNamespace && controlPlaneNamespaceFromEnv != "" {
-			controlPlaneNamespace = controlPlaneNamespaceFromEnv
+		if rootOptions.controlPlaneNamespace == defaultNamespace && controlPlaneNamespaceFromEnv != "" {
+			rootOptions.controlPlaneNamespace = controlPlaneNamespaceFromEnv
 		}
 
-		if !alphaNumDash.MatchString(controlPlaneNamespace) {
-			return fmt.Errorf("%s is not a valid namespace", controlPlaneNamespace)
+		if !alphaNumDash.MatchString(rootOptions.controlPlaneNamespace) {
+			return fmt.Errorf("%s is not a valid namespace", rootOptions.controlPlaneNamespace)
 		}
 
 		return nil
@@ -87,11 +104,10 @@ var RootCmd = &cobra.Command{
 }
 
 func init() {
-	RootCmd.PersistentFlags().StringVarP(&controlPlaneNamespace, "linkerd-namespace", "l", defaultNamespace, "Namespace in which Linkerd is installed [$LINKERD_NAMESPACE]")
-	RootCmd.PersistentFlags().StringVar(&kubeconfigPath, "kubeconfig", "", "Path to the kubeconfig file to use for CLI requests")
-	RootCmd.PersistentFlags().StringVar(&kubeContext, "context", "", "Name of the kubeconfig context to use")
-	RootCmd.PersistentFlags().StringVar(&apiAddr, "api-addr", "", "Override kubeconfig and communicate directly with the control plane at host:port (mostly for testing)")
-	RootCmd.PersistentFlags().BoolVar(&verbose, "verbose", false, "Turn on debug logging")
+	RootCmd.PersistentFlags().StringVarP(&rootOptions.controlPlaneNamespace, "linkerd-namespace", "l", rootOptions.controlPlaneNamespace, "Namespace in which Linkerd is installed [$LINKERD_NAMESPACE]")
+	RootCmd.PersistentFlags().StringVar(&rootOptions.apiAddr, "api-addr", rootOptions.apiAddr, "Override kubeconfig and communicate directly with the control plane at host:port (mostly for testing)")
+	RootCmd.PersistentFlags().BoolVar(&rootOptions.verbose, "verbose", rootOptions.verbose, "Turn on debug logging")
+	rootOptions.configFlags.AddFlags(RootCmd.PersistentFlags())
 
 	RootCmd.AddCommand(newCmdCheck())
 	RootCmd.AddCommand(newCmdCompletion())

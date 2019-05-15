@@ -55,7 +55,7 @@ func testUninjectAndInject(t *testing.T, tc testCase) {
 	}
 	diffTestdata(t, tc.goldenFileName, output.String())
 
-	reportFileName := mkFilename(tc.reportFileName, verbose)
+	reportFileName := mkFilename(tc.reportFileName, rootOptions.verbose)
 	diffTestdata(t, reportFileName, report.String())
 }
 
@@ -262,11 +262,11 @@ func TestUninjectAndInject(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc // pin
-		verbose = true
+		rootOptions.verbose = true
 		t.Run(fmt.Sprintf("%d: %s --verbose", i, tc.inputFileName), func(t *testing.T) {
 			testUninjectAndInject(t, tc)
 		})
-		verbose = false
+		rootOptions.verbose = false
 		t.Run(fmt.Sprintf("%d: %s", i, tc.inputFileName), func(t *testing.T) {
 			testUninjectAndInject(t, tc)
 		})
@@ -306,7 +306,7 @@ func testInjectCmd(t *testing.T, tc injectCmd) {
 		t.Fatalf("Expected no standard output, but got: %s", outBuffer)
 	}
 
-	stdErrGoldenFileName := mkFilename(tc.stdErrGoldenFileName, verbose)
+	stdErrGoldenFileName := mkFilename(tc.stdErrGoldenFileName, rootOptions.verbose)
 	diffTestdata(t, stdErrGoldenFileName, errBuffer.String())
 }
 
@@ -327,11 +327,11 @@ func TestRunInjectCmd(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc // pin
-		verbose = true
+		rootOptions.verbose = true
 		t.Run(fmt.Sprintf("%d: %s --verbose", i, tc.inputFileName), func(t *testing.T) {
 			testInjectCmd(t, tc)
 		})
-		verbose = false
+		rootOptions.verbose = false
 		t.Run(fmt.Sprintf("%d: %s", i, tc.inputFileName), func(t *testing.T) {
 			testInjectCmd(t, tc)
 		})
@@ -362,7 +362,7 @@ func testInjectFilePath(t *testing.T, tc injectFilePath) {
 	}
 	diffTestdata(t, tc.expectedFile, actual.String())
 
-	stdErrFile := mkFilename(tc.stdErrFile, verbose)
+	stdErrFile := mkFilename(tc.stdErrFile, rootOptions.verbose)
 	diffTestdata(t, stdErrFile, errBuf.String())
 }
 
@@ -385,7 +385,7 @@ func testReadFromFolder(t *testing.T, resourceFolder string, expectedFolder stri
 	expectedFile := filepath.Join(expectedFolder, "injected_nginx_redis.yaml")
 	diffTestdata(t, expectedFile, actual.String())
 
-	stdErrFileName := mkFilename(filepath.Join(expectedFolder, "injected_nginx_redis.stderr"), verbose)
+	stdErrFileName := mkFilename(filepath.Join(expectedFolder, "injected_nginx_redis.stderr"), rootOptions.verbose)
 	diffTestdata(t, stdErrFileName, errBuf.String())
 }
 
@@ -413,22 +413,22 @@ func TestInjectFilePath(t *testing.T) {
 
 		for i, testCase := range testCases {
 			testCase := testCase // pin
-			verbose = true
+			rootOptions.verbose = true
 			t.Run(fmt.Sprintf("%d %s", i, testCase.resource), func(t *testing.T) {
 				testInjectFilePath(t, testCase)
 			})
-			verbose = false
+			rootOptions.verbose = false
 			t.Run(fmt.Sprintf("%d %s", i, testCase.resource), func(t *testing.T) {
 				testInjectFilePath(t, testCase)
 			})
 		}
 	})
 
-	verbose = true
+	rootOptions.verbose = true
 	t.Run("read from folder --verbose", func(t *testing.T) {
 		testReadFromFolder(t, resourceFolder, expectedFolder)
 	})
-	verbose = false
+	rootOptions.verbose = false
 	t.Run("read from folder --verbose", func(t *testing.T) {
 		testReadFromFolder(t, resourceFolder, expectedFolder)
 	})

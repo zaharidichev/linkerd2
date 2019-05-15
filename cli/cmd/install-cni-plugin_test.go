@@ -7,7 +7,7 @@ import (
 )
 
 func TestRenderCNIPlugin(t *testing.T) {
-	defaultControlPlaneNamespace := controlPlaneNamespace
+	defaultControlPlaneNamespace := rootOptions.controlPlaneNamespace
 	defaultOptions := newCNIPluginOptions()
 	defaultConfig, err := validateAndBuildCNIConfig(defaultOptions)
 	if err != nil {
@@ -70,7 +70,7 @@ func TestRenderCNIPlugin(t *testing.T) {
 		tc := tc // pin
 		t.Run(fmt.Sprintf("%d: %s", i, tc.goldenFileName), func(t *testing.T) {
 			defer teardown(defaultControlPlaneNamespace)
-			controlPlaneNamespace = tc.namespace
+			rootOptions.controlPlaneNamespace = tc.namespace
 
 			var buf bytes.Buffer
 			err := renderCNIPlugin(&buf, tc.installCNIPluginConfig)
@@ -81,9 +81,9 @@ func TestRenderCNIPlugin(t *testing.T) {
 		})
 	}
 
-	controlPlaneNamespace = defaultControlPlaneNamespace
+	rootOptions.controlPlaneNamespace = defaultControlPlaneNamespace
 }
 
 func teardown(originalNamespace string) {
-	controlPlaneNamespace = originalNamespace
+	rootOptions.controlPlaneNamespace = originalNamespace
 }

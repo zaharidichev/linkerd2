@@ -17,16 +17,16 @@ import (
 
 // rawPublicAPIClient creates a raw public API client with no validation.
 func rawPublicAPIClient() (pb.ApiClient, error) {
-	if apiAddr != "" {
-		return public.NewInternalClient(controlPlaneNamespace, apiAddr)
+	if rootOptions.apiAddr != "" {
+		return public.NewInternalClient(rootOptions.controlPlaneNamespace, rootOptions.apiAddr)
 	}
 
-	kubeAPI, err := k8s.NewAPI(kubeconfigPath, kubeContext, 0)
+	kubeAPI, err := k8s.NewAPI(*rootOptions.configFlags.KubeConfig, *rootOptions.configFlags.Context, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	return public.NewExternalClient(controlPlaneNamespace, kubeAPI)
+	return public.NewExternalClient(rootOptions.controlPlaneNamespace, kubeAPI)
 }
 
 // checkPublicAPIClientOrExit builds a new public API client and executes default status
@@ -58,10 +58,10 @@ func checkPublicAPIClientOrRetryOrExit(retryDeadline time.Time, apiChecks bool) 
 
 func newHealthChecker(checks []healthcheck.CategoryID, retryDeadline time.Time) *healthcheck.HealthChecker {
 	return healthcheck.NewHealthChecker(checks, &healthcheck.Options{
-		ControlPlaneNamespace: controlPlaneNamespace,
-		KubeConfig:            kubeconfigPath,
-		KubeContext:           kubeContext,
-		APIAddr:               apiAddr,
+		ControlPlaneNamespace: rootOptions.controlPlaneNamespace,
+		KubeConfig:            *rootOptions.configFlags.KubeConfig,
+		KubeContext:           *rootOptions.configFlags.Context,
+		APIAddr:               rootOptions.apiAddr,
 		RetryDeadline:         retryDeadline,
 	})
 }
@@ -85,8 +85,8 @@ func exitOnError(result *healthcheck.CheckResult) {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", msg, result.Err)
 
 		checkCmd := "linkerd check"
-		if controlPlaneNamespace != defaultNamespace {
-			checkCmd += fmt.Sprintf(" --linkerd-namespace %s", controlPlaneNamespace)
+		if rootOptions.controlPlaneNamespace != defaultNamespace {
+			checkCmd += fmt.Sprintf(" --linkerd-namespace %s", rootOptions.controlPlaneNamespace)
 		}
 		fmt.Fprintf(os.Stderr, "Validate the install with: %s\n", checkCmd)
 

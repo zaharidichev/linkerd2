@@ -77,7 +77,7 @@ func (o *logsOptions) toSternConfig(controlPlaneComponents, availableContainers 
 			}
 		}
 		if matchingContainer == "" {
-			return nil, fmt.Errorf("container [%s] does not exist in control plane [%s]", o.container, controlPlaneNamespace)
+			return nil, fmt.Errorf("container [%s] does not exist in control plane [%s]", o.container, rootOptions.controlPlaneNamespace)
 		}
 	}
 
@@ -100,7 +100,7 @@ func (o *logsOptions) toSternConfig(controlPlaneComponents, availableContainers 
 	config.PodQuery = podFilterRgx
 	config.Since = o.sinceSeconds
 	config.Timestamps = o.timestamps
-	config.Namespace = controlPlaneNamespace
+	config.Namespace = rootOptions.controlPlaneNamespace
 
 	return config, nil
 }
@@ -122,7 +122,7 @@ func newLogCmdConfig(options *logsOptions, kubeconfigPath, kubeContext string) (
 		return nil, err
 	}
 
-	podList, err := kubeAPI.CoreV1().Pods(controlPlaneNamespace).List(metav1.ListOptions{})
+	podList, err := kubeAPI.CoreV1().Pods(rootOptions.controlPlaneNamespace).List(metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func newCmdLogs() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			color.NoColor = options.noColor
 
-			opts, err := newLogCmdConfig(options, kubeconfigPath, kubeContext)
+			opts, err := newLogCmdConfig(options, *rootOptions.configFlags.KubeConfig, *rootOptions.configFlags.Context)
 
 			if err != nil {
 				return err
