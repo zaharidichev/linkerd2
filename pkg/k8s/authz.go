@@ -36,18 +36,36 @@ func ResourceAuthz(
 		return err
 	}
 
-	if result.Status.Allowed {
-		return nil
+	return evaluateAccessReviewStatus(group, resource, result.Status)
+}
+
+func ResourceAuthzForUser(
+	client kubernetes.Interface,
+	namespace, verb, group, version, resource, user string, userGroups []string) error {
+	sar := &authV1.SubjectAccessReview{
+		Spec: authV1.SubjectAccessReviewSpec{
+			User:   user,
+			Groups: userGroups,
+			ResourceAttributes: &authV1.ResourceAttributes{
+				Namespace: namespace,
+				Verb:      verb,
+				Group:     group,
+				Version:   version,
+				Resource:  resource,
+			},
+		},
 	}
 
-	gk := schema.GroupKind{
-		Group: group,
-		Kind:  resource,
+	result, err := client.
+		AuthorizationV1().
+		SubjectAccessReviews().
+		Create(sar)
+
+	if err != nil {
+		return err
 	}
-	if len(result.Status.Reason) > 0 {
-		return fmt.Errorf("not authorized to access %s: %s", gk, result.Status.Reason)
-	}
-	return fmt.Errorf("not authorized to access %s", gk)
+
+	return evaluateAccessReviewStatus(group, resource, result.Status)
 }
 
 // ServiceProfilesAccess checks whether the ServiceProfile CRD is installed
@@ -73,4 +91,19 @@ func ServiceProfilesAccess(k8sClient kubernetes.Interface) error {
 // all namespaces in the cluster.
 func ClusterAccess(k8sClient kubernetes.Interface) error {
 	return ResourceAuthz(k8sClient, "", "list", "", "", "pods", "")
+}
+
+func evaluateAccessReviewStatus(group, resource string, status authV1.SubjectAccessReviewStatus) error {
+	if status.Allowed {
+		return nil
+	}
+
+	gk := schema.GroupKind{
+		Group: group,
+		Kind:  resource,
+	}
+	if len(status.Reason) > 0 {
+		return fmt.Errorf("not authorized to access %s: %s", gk, status.Reason)
+	}
+	return fmt.Errorf("not authorized to access %s", gk)
 }

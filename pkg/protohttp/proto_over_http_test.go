@@ -1,4 +1,4 @@
-package public
+package protohttp
 
 import (
 	"bufio"
@@ -76,7 +76,7 @@ func TestHttpRequestToProto(t *testing.T) {
 		}
 
 		var actualProtoMessage pb.Pod
-		err = httpRequestToProto(req, &actualProtoMessage)
+		err = HTTPRequestToProto(req, &actualProtoMessage)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -94,7 +94,7 @@ func TestHttpRequestToProto(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		err = httpRequestToProto(req, &actualProtoMessage)
+		err = HTTPRequestToProto(req, &actualProtoMessage)
 		if err == nil {
 			t.Fatalf("Expecting error, got nothing")
 		}
@@ -117,7 +117,7 @@ func TestWriteErrorToHttpResponse(t *testing.T) {
 		responseWriter := newStubResponseWriter()
 		genericError := errors.New("expected generic error")
 
-		writeErrorToHTTPResponse(responseWriter, genericError)
+		WriteErrorToHTTPResponse(responseWriter, genericError)
 
 		assertResponseHasProtobufContentType(t, responseWriter)
 
@@ -126,7 +126,7 @@ func TestWriteErrorToHttpResponse(t *testing.T) {
 			t.Fatalf("Expecting response to have status code [%d], got [%s]", expectedErrorStatusCode, actualErrorStatusCode)
 		}
 
-		payloadRead, err := deserializePayloadFromReader(bufio.NewReader(bytes.NewReader(responseWriter.body.Bytes())))
+		payloadRead, err := DeserializePayloadFromReader(bufio.NewReader(bytes.NewReader(responseWriter.body.Bytes())))
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -151,7 +151,7 @@ func TestWriteErrorToHttpResponse(t *testing.T) {
 			Code:         http.StatusBadGateway,
 		}
 
-		writeErrorToHTTPResponse(responseWriter, httpError)
+		WriteErrorToHTTPResponse(responseWriter, httpError)
 
 		assertResponseHasProtobufContentType(t, responseWriter)
 
@@ -160,7 +160,7 @@ func TestWriteErrorToHttpResponse(t *testing.T) {
 			t.Fatalf("Expecting response to have status code [%d], got [%s]", expectedErrorStatusCode, actualErrorStatusCode)
 		}
 
-		payloadRead, err := deserializePayloadFromReader(bufio.NewReader(bytes.NewReader(responseWriter.body.Bytes())))
+		payloadRead, err := DeserializePayloadFromReader(bufio.NewReader(bytes.NewReader(responseWriter.body.Bytes())))
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -184,7 +184,7 @@ func TestWriteErrorToHttpResponse(t *testing.T) {
 		expectedErrorMessage := "error message"
 		grpcError := status.Errorf(codes.AlreadyExists, expectedErrorMessage)
 
-		writeErrorToHTTPResponse(responseWriter, grpcError)
+		WriteErrorToHTTPResponse(responseWriter, grpcError)
 
 		assertResponseHasProtobufContentType(t, responseWriter)
 
@@ -193,7 +193,7 @@ func TestWriteErrorToHttpResponse(t *testing.T) {
 			t.Fatalf("Expecting response to have status code [%d], got [%s]", expectedErrorStatusCode, actualErrorStatusCode)
 		}
 
-		payloadRead, err := deserializePayloadFromReader(bufio.NewReader(bytes.NewReader(responseWriter.body.Bytes())))
+		payloadRead, err := DeserializePayloadFromReader(bufio.NewReader(bytes.NewReader(responseWriter.body.Bytes())))
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -220,14 +220,14 @@ func TestWriteProtoToHttpResponse(t *testing.T) {
 		}
 
 		responseWriter := newStubResponseWriter()
-		err := writeProtoToHTTPResponse(responseWriter, &expectedMessage)
+		err := WriteProtoToHTTPResponse(responseWriter, &expectedMessage)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
 		assertResponseHasProtobufContentType(t, responseWriter)
 
-		payloadRead, err := deserializePayloadFromReader(bufio.NewReader(bytes.NewReader(responseWriter.body.Bytes())))
+		payloadRead, err := DeserializePayloadFromReader(bufio.NewReader(bytes.NewReader(responseWriter.body.Bytes())))
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -248,10 +248,10 @@ func TestDeserializePayloadFromReader(t *testing.T) {
 	t.Run("Can read message correctly based on payload size correct payload size to message", func(t *testing.T) {
 		expectedMessage := "this is the message"
 
-		messageWithSize := serializeAsPayload([]byte(expectedMessage))
+		messageWithSize := SerializeAsPayload([]byte(expectedMessage))
 		messageWithSomeNoise := append(messageWithSize, []byte("this is noise and should not be read")...)
 
-		actualMessage, err := deserializePayloadFromReader(bufio.NewReader(bytes.NewReader(messageWithSomeNoise)))
+		actualMessage, err := DeserializePayloadFromReader(bufio.NewReader(bytes.NewReader(messageWithSomeNoise)))
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -272,18 +272,18 @@ func TestDeserializePayloadFromReader(t *testing.T) {
 			expectedMessage2 = expectedMessage2 + fmt.Sprintf("tum (%d), ", i)
 		}
 
-		messageWithSize1 := serializeAsPayload([]byte(expectedMessage1))
-		messageWithSize2 := serializeAsPayload([]byte(expectedMessage2))
+		messageWithSize1 := SerializeAsPayload([]byte(expectedMessage1))
+		messageWithSize2 := SerializeAsPayload([]byte(expectedMessage2))
 
 		streamWithManyMessages := append(messageWithSize1, messageWithSize2...)
 		reader := bufio.NewReader(bytes.NewReader(streamWithManyMessages))
 
-		actualMessage1, err := deserializePayloadFromReader(reader)
+		actualMessage1, err := DeserializePayloadFromReader(reader)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		actualMessage2, err := deserializePayloadFromReader(reader)
+		actualMessage2, err := DeserializePayloadFromReader(reader)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -309,14 +309,14 @@ func TestDeserializePayloadFromReader(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		serialized := serializeAsPayload(expectedReadArray)
+		serialized := SerializeAsPayload(expectedReadArray)
 
 		reader := bufio.NewReader(bytes.NewReader(serialized))
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		actualReadArray, err := deserializePayloadFromReader(reader)
+		actualReadArray, err := DeserializePayloadFromReader(reader)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -355,8 +355,8 @@ func TestDeserializePayloadFromReader(t *testing.T) {
 			t.Fatalf("Test needs data larger than [%d] bytes, currently only [%d] bytes", goDefaultChunkSize, lengthOfInputData)
 		}
 
-		payload := serializeAsPayload(expectedMessageAsBytes)
-		actualMessage, err := deserializePayloadFromReader(bufio.NewReader(bytes.NewReader(payload)))
+		payload := SerializeAsPayload(expectedMessageAsBytes)
+		actualMessage, err := DeserializePayloadFromReader(bufio.NewReader(bytes.NewReader(payload)))
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -369,9 +369,9 @@ func TestDeserializePayloadFromReader(t *testing.T) {
 	t.Run("Returns error when message has fewer bytes than declared message size", func(t *testing.T) {
 		expectedMessage := "this is the message"
 
-		messageWithSize := serializeAsPayload([]byte(expectedMessage))
+		messageWithSize := SerializeAsPayload([]byte(expectedMessage))
 		messageMissingOneCharacter := messageWithSize[:len(expectedMessage)-1]
-		_, err := deserializePayloadFromReader(bufio.NewReader(bytes.NewReader(messageMissingOneCharacter)))
+		_, err := DeserializePayloadFromReader(bufio.NewReader(bytes.NewReader(messageMissingOneCharacter)))
 		if err == nil {
 			t.Fatalf("Expecting error, got nothing")
 		}
@@ -381,7 +381,7 @@ func TestDeserializePayloadFromReader(t *testing.T) {
 func TestNewStreamingWriter(t *testing.T) {
 	t.Run("Returns a streaming writer if the ResponseWriter is compatible with streaming", func(t *testing.T) {
 		rawWriter := newStubResponseWriter()
-		flushableWriter, err := newStreamingWriter(rawWriter)
+		flushableWriter, err := NewStreamingWriter(rawWriter)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -406,7 +406,7 @@ func TestNewStreamingWriter(t *testing.T) {
 	})
 
 	t.Run("Returns an error if writer doesnt support streaming", func(t *testing.T) {
-		_, err := newStreamingWriter(&nonStreamingResponseWriter{})
+		_, err := NewStreamingWriter(&nonStreamingResponseWriter{})
 		if err == nil {
 			t.Fatalf("Expecting error, got nothing")
 		}
@@ -419,7 +419,7 @@ func TestCheckIfResponseHasError(t *testing.T) {
 			Header:     make(http.Header),
 			StatusCode: http.StatusOK,
 		}
-		err := checkIfResponseHasError(response)
+		err := CheckIfResponseHasError(response)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -432,7 +432,7 @@ func TestCheckIfResponseHasError(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		message := serializeAsPayload(protoInBytes)
+		message := SerializeAsPayload(protoInBytes)
 		response := &http.Response{
 			Header:     make(http.Header),
 			Body:       ioutil.NopCloser(bytes.NewReader(message)),
@@ -440,7 +440,7 @@ func TestCheckIfResponseHasError(t *testing.T) {
 		}
 		response.Header.Set(errorHeader, "error")
 
-		err = checkIfResponseHasError(response)
+		err = CheckIfResponseHasError(response)
 		if err == nil {
 			t.Fatalf("Expecting error, got nothing")
 		}
@@ -457,7 +457,7 @@ func TestCheckIfResponseHasError(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		message := serializeAsPayload(protoInBytes)
+		message := SerializeAsPayload(protoInBytes)
 
 		response := &http.Response{
 			Header:     make(http.Header),
@@ -466,7 +466,7 @@ func TestCheckIfResponseHasError(t *testing.T) {
 		}
 		response.Header.Set(errorHeader, "error")
 
-		err = checkIfResponseHasError(response)
+		err = CheckIfResponseHasError(response)
 		if err == nil {
 			t.Fatalf("Expecting error, got nothing")
 		}
@@ -478,7 +478,7 @@ func TestCheckIfResponseHasError(t *testing.T) {
 			Status:     "503 Service Unavailable",
 		}
 
-		err := checkIfResponseHasError(response)
+		err := CheckIfResponseHasError(response)
 		if err == nil {
 			t.Fatalf("Expecting error, got nothing")
 		}

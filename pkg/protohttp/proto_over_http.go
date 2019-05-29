@@ -1,4 +1,4 @@
-package public
+package protohttp
 
 import (
 	"bufio"
@@ -28,7 +28,8 @@ type httpError struct {
 	WrappedError error
 }
 
-type flushableResponseWriter interface {
+// FlushableResponseWriter do stuff
+type FlushableResponseWriter interface {
 	http.ResponseWriter
 	http.Flusher
 }
@@ -37,7 +38,8 @@ func (e httpError) Error() string {
 	return fmt.Sprintf("HTTP error, status Code [%d], wrapped error is: %v", e.Code, e.WrappedError)
 }
 
-func httpRequestToProto(req *http.Request, protoRequestOut proto.Message) error {
+// HTTPRequestToProto do stuff
+func HTTPRequestToProto(req *http.Request, protoRequestOut proto.Message) error {
 	bytes, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		return httpError{
@@ -57,7 +59,8 @@ func httpRequestToProto(req *http.Request, protoRequestOut proto.Message) error 
 	return nil
 }
 
-func writeErrorToHTTPResponse(w http.ResponseWriter, errorObtained error) {
+// WriteErrorToHTTPResponse do stuff
+func WriteErrorToHTTPResponse(w http.ResponseWriter, errorObtained error) {
 	statusCode := defaultHTTPErrorStatusCode
 	errorToReturn := errorObtained
 
@@ -75,27 +78,29 @@ func writeErrorToHTTPResponse(w http.ResponseWriter, errorObtained error) {
 
 	errorAsProto := &pb.ApiError{Error: errorMessageToReturn}
 
-	err := writeProtoToHTTPResponse(w, errorAsProto)
+	err := WriteProtoToHTTPResponse(w, errorAsProto)
 	if err != nil {
 		log.Errorf("Error writing error to http response: %v", err)
 		w.Header().Set(errorHeader, err.Error())
 	}
 }
 
-func writeProtoToHTTPResponse(w http.ResponseWriter, msg proto.Message) error {
+// WriteProtoToHTTPResponse do stuff
+func WriteProtoToHTTPResponse(w http.ResponseWriter, msg proto.Message) error {
 	w.Header().Set(contentTypeHeader, protobufContentType)
 	marshalledProtobufMessage, err := proto.Marshal(msg)
 	if err != nil {
 		return err
 	}
 
-	fullPayload := serializeAsPayload(marshalledProtobufMessage)
+	fullPayload := SerializeAsPayload(marshalledProtobufMessage)
 	_, err = w.Write(fullPayload)
 	return err
 }
 
-func newStreamingWriter(w http.ResponseWriter) (flushableResponseWriter, error) {
-	flushableWriter, ok := w.(flushableResponseWriter)
+// NewStreamingWriter do stuff
+func NewStreamingWriter(w http.ResponseWriter) (FlushableResponseWriter, error) {
+	flushableWriter, ok := w.(FlushableResponseWriter)
 	if !ok {
 		return nil, fmt.Errorf("streaming not supported by this writer")
 	}
@@ -105,7 +110,8 @@ func newStreamingWriter(w http.ResponseWriter) (flushableResponseWriter, error) 
 	return flushableWriter, nil
 }
 
-func serializeAsPayload(messageContentsInBytes []byte) []byte {
+// SerializeAsPayload do stuff
+func SerializeAsPayload(messageContentsInBytes []byte) []byte {
 	lengthOfThePayload := uint32(len(messageContentsInBytes))
 
 	messageLengthInBytes := make([]byte, numBytesForMessageLength)
@@ -114,7 +120,8 @@ func serializeAsPayload(messageContentsInBytes []byte) []byte {
 	return append(messageLengthInBytes, messageContentsInBytes...)
 }
 
-func deserializePayloadFromReader(reader *bufio.Reader) ([]byte, error) {
+// DeserializePayloadFromReader do stuff
+func DeserializePayloadFromReader(reader *bufio.Reader) ([]byte, error) {
 	messageLengthAsBytes := make([]byte, numBytesForMessageLength)
 	_, err := io.ReadFull(reader, messageLengthAsBytes)
 	if err != nil {
@@ -131,14 +138,15 @@ func deserializePayloadFromReader(reader *bufio.Reader) ([]byte, error) {
 	return messageContentsAsBytes, nil
 }
 
-func checkIfResponseHasError(rsp *http.Response) error {
+// CheckIfResponseHasError do stuff
+func CheckIfResponseHasError(rsp *http.Response) error {
 	errorMsg := rsp.Header.Get(errorHeader)
 
 	if errorMsg != "" {
 		reader := bufio.NewReader(rsp.Body)
 		var apiError pb.ApiError
 
-		err := fromByteStreamToProtocolBuffers(reader, &apiError)
+		err := FromByteStreamToProtocolBuffers(reader, &apiError)
 		if err != nil {
 			return fmt.Errorf("Response has %s header [%s], but response body didn't contain protobuf error: %v", errorHeader, errorMsg, err)
 		}
@@ -148,6 +156,21 @@ func checkIfResponseHasError(rsp *http.Response) error {
 
 	if rsp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Unexpected API response: %s", rsp.Status)
+	}
+
+	return nil
+}
+
+// FromByteStreamToProtocolBuffers do stuff
+func FromByteStreamToProtocolBuffers(byteStreamContainingMessage *bufio.Reader, out proto.Message) error {
+	messageAsBytes, err := DeserializePayloadFromReader(byteStreamContainingMessage)
+	if err != nil {
+		return fmt.Errorf("error reading byte stream header: %v", err)
+	}
+
+	err = proto.Unmarshal(messageAsBytes, out)
+	if err != nil {
+		return fmt.Errorf("error unmarshalling array of [%d] bytes error: %v", len(messageAsBytes), err)
 	}
 
 	return nil

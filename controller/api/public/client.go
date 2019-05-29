@@ -14,6 +14,7 @@ import (
 	discoveryPb "github.com/linkerd/linkerd2/controller/gen/controller/discovery"
 	pb "github.com/linkerd/linkerd2/controller/gen/public"
 	"github.com/linkerd/linkerd2/pkg/k8s"
+	"github.com/linkerd/linkerd2/pkg/protohttp"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -98,7 +99,7 @@ func (c *grpcOverHTTPClient) TapByResource(ctx context.Context, req *pb.TapByRes
 		return nil, err
 	}
 
-	if err := checkIfResponseHasError(httpRsp); err != nil {
+	if err := protohttp.CheckIfResponseHasError(httpRsp); err != nil {
 		httpRsp.Body.Close()
 		return nil, err
 	}
@@ -129,12 +130,12 @@ func (c *grpcOverHTTPClient) apiRequest(ctx context.Context, endpoint string, re
 	defer httpRsp.Body.Close()
 	log.Debugf("gRPC-over-HTTP call returned status [%s] and content length [%d]", httpRsp.Status, httpRsp.ContentLength)
 
-	if err := checkIfResponseHasError(httpRsp); err != nil {
+	if err := protohttp.CheckIfResponseHasError(httpRsp); err != nil {
 		return err
 	}
 
 	reader := bufio.NewReader(httpRsp.Body)
-	return fromByteStreamToProtocolBuffers(reader, protoResponse)
+	return protohttp.FromByteStreamToProtocolBuffers(reader, protoResponse)
 }
 
 func (c *grpcOverHTTPClient) post(ctx context.Context, url *url.URL, req proto.Message) (*http.Response, error) {
@@ -173,7 +174,7 @@ type tapClient struct {
 
 func (c tapClient) Recv() (*pb.TapEvent, error) {
 	var msg pb.TapEvent
-	err := fromByteStreamToProtocolBuffers(c.reader, &msg)
+	err := protohttp.FromByteStreamToProtocolBuffers(c.reader, &msg)
 	return &msg, err
 }
 
@@ -184,20 +185,6 @@ func (c tapClient) CloseSend() error             { return nil }
 func (c tapClient) Context() context.Context     { return c.ctx }
 func (c tapClient) SendMsg(interface{}) error    { return nil }
 func (c tapClient) RecvMsg(interface{}) error    { return nil }
-
-func fromByteStreamToProtocolBuffers(byteStreamContainingMessage *bufio.Reader, out proto.Message) error {
-	messageAsBytes, err := deserializePayloadFromReader(byteStreamContainingMessage)
-	if err != nil {
-		return fmt.Errorf("error reading byte stream header: %v", err)
-	}
-
-	err = proto.Unmarshal(messageAsBytes, out)
-	if err != nil {
-		return fmt.Errorf("error unmarshalling array of [%d] bytes error: %v", len(messageAsBytes), err)
-	}
-
-	return nil
-}
 
 func newClient(apiURL *url.URL, httpClientToUse *http.Client, controlPlaneNamespace string) (APIClient, error) {
 	if !apiURL.IsAbs() {

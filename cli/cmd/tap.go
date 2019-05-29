@@ -1,17 +1,22 @@
 package cmd
 
 import (
-	"context"
+	"bufio"
+	"bytes"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/linkerd/linkerd2/controller/api/util"
 	pb "github.com/linkerd/linkerd2/controller/gen/public"
 	"github.com/linkerd/linkerd2/pkg/addr"
 	"github.com/linkerd/linkerd2/pkg/k8s"
+	"github.com/linkerd/linkerd2/pkg/protohttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
@@ -96,6 +101,16 @@ func newCmdTap() *cobra.Command {
 				Path:        options.path,
 			}
 
+			k8sAPI, err := k8s.NewAPI(kubeconfigPath, kubeContext, 30*time.Second)
+			if err != nil {
+				return err
+			}
+
+			httpClient, err := k8sAPI.NewClient()
+			if err != nil {
+				return err
+			}
+
 			req, err := util.BuildTapByResourceRequest(requestParams)
 			if err != nil {
 				return err
@@ -112,7 +127,8 @@ func newCmdTap() *cobra.Command {
 				return fmt.Errorf("output format \"%s\" not recognized", options.output)
 			}
 
-			return requestTapByResourceFromAPI(os.Stdout, checkPublicAPIClientOrExit(), req, wide)
+			//TODO: check connectivity to Kube API
+			return requestTapByResourceFromAPI(os.Stdout, httpClient, req, wide, k8sAPI)
 		},
 	}
 
@@ -138,22 +154,51 @@ func newCmdTap() *cobra.Command {
 	return cmd
 }
 
-func requestTapByResourceFromAPI(w io.Writer, client pb.ApiClient, req *pb.TapByResourceRequest, wide bool) error {
+func requestTapByResourceFromAPI(w io.Writer, client *http.Client, req *pb.TapByResourceRequest, wide bool, api *k8s.KubernetesAPI) error {
 	var resource string
+	tapURL := "/apis/tap.linkerd.io/v1alpha1/watch/taps"
+
 	if wide {
 		resource = req.Target.Resource.GetType()
 	}
 
-	rsp, err := client.TapByResource(context.Background(), req)
+	if req.Target.GetResource().Namespace != "" {
+		tapURL = fmt.Sprintf("/apis/tap.linkerd.io/v1alpha1/watch/namespace/%s/taps", req.Target.GetResource().Namespace)
+	}
+
+	reqBytes, err := proto.Marshal(req)
 	if err != nil {
 		return err
 	}
-	return renderTap(w, rsp, resource)
+
+	httpReq, err := http.NewRequest(
+		http.MethodPost,
+		fmt.Sprintf("%s%s", api.HostName(), tapURL),
+		bytes.NewReader(reqBytes),
+	)
+
+	if err != nil {
+		return err
+	}
+
+	rsp, err := client.Do(httpReq)
+	if err != nil {
+		log.Debugf("Error invoking [%s]: %v", "taps", err)
+		return err
+	}
+
+	log.Debugf("Response from [%s] had headers: %v", "taps", rsp.Header)
+
+	defer rsp.Body.Close()
+
+	reader := bufio.NewReader(rsp.Body)
+
+	return renderTap(w, reader, resource)
 }
 
-func renderTap(w io.Writer, tapClient pb.Api_TapByResourceClient, resource string) error {
+func renderTap(w io.Writer, tapStream *bufio.Reader, resource string) error {
 	tableWriter := tabwriter.NewWriter(w, 0, 0, 0, ' ', tabwriter.AlignRight)
-	err := writeTapEventsToBuffer(tapClient, tableWriter, resource)
+	err := writeTapEventsToBuffer(tapStream, tableWriter, resource)
 	if err != nil {
 		return err
 	}
@@ -162,10 +207,11 @@ func renderTap(w io.Writer, tapClient pb.Api_TapByResourceClient, resource strin
 	return nil
 }
 
-func writeTapEventsToBuffer(tapClient pb.Api_TapByResourceClient, w *tabwriter.Writer, resource string) error {
+func writeTapEventsToBuffer(tapStream *bufio.Reader, w *tabwriter.Writer, resource string) error {
 	for {
+		var event pb.TapEvent
 		log.Debug("Waiting for data...")
-		event, err := tapClient.Recv()
+		err := protohttp.FromByteStreamToProtocolBuffers(tapStream, &event)
 		if err == io.EOF {
 			break
 		}
@@ -173,7 +219,7 @@ func writeTapEventsToBuffer(tapClient pb.Api_TapByResourceClient, w *tabwriter.W
 			fmt.Fprintln(os.Stderr, err)
 			break
 		}
-		_, err = fmt.Fprintln(w, renderTapEvent(event, resource))
+		_, err = fmt.Fprintln(w, renderTapEvent(&event, resource))
 		if err != nil {
 			return err
 		}

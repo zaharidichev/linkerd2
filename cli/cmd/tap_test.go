@@ -80,7 +80,7 @@ func busyTest(t *testing.T, wide bool) {
 	}
 
 	writer := bytes.NewBufferString("")
-	err = requestTapByResourceFromAPI(writer, mockAPIClient, req, wide)
+	err = requestTapByResourceFromAPI(writer, mockAPIClient, req, wide, nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestRequestTapByResourceFromAPI(t *testing.T) {
 		}
 
 		writer := bytes.NewBufferString("")
-		err = requestTapByResourceFromAPI(writer, mockAPIClient, req, false)
+		err = requestTapByResourceFromAPI(writer, mockAPIClient, req, false, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -171,7 +171,7 @@ func TestRequestTapByResourceFromAPI(t *testing.T) {
 		}
 
 		writer := bytes.NewBufferString("")
-		err = requestTapByResourceFromAPI(writer, mockAPIClient, req, false)
+		err = requestTapByResourceFromAPI(writer, mockAPIClient, req, false, nil)
 		if err == nil {
 			t.Fatalf("Expecting error, got nothing but output [%s]", writer.String())
 		}

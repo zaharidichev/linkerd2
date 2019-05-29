@@ -4,11 +4,11 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	httpPb "github.com/linkerd/linkerd2-proxy-api/go/http_types"
@@ -20,6 +20,7 @@ import (
 	"github.com/linkerd/linkerd2/pkg/addr"
 	pkgK8s "github.com/linkerd/linkerd2/pkg/k8s"
 	"github.com/linkerd/linkerd2/pkg/prometheus"
+	"github.com/linkerd/linkerd2/pkg/protohttp"
 	pkgTls "github.com/linkerd/linkerd2/pkg/tls"
 	"github.com/linkerd/linkerd2/pkg/util"
 	log "github.com/sirupsen/logrus"
@@ -28,6 +29,7 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	v1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	aggClientSet "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
@@ -44,7 +46,9 @@ type (
 	}
 
 	grpcOverHTTPSServer struct {
-		tapClient pb.TapClient
+		tapClient          pb.TapClient
+		allowedCommonNames []string
+		k8sClient          kubernetes.Interface
 	}
 )
 
@@ -463,6 +467,7 @@ func NewServer(
 	return s, lis, nil
 }
 
+// NewHTTPSServer starts a new HTTPS server that is used with Kubernetes API extension server
 func NewHTTPSServer(
 	addr string,
 	client pb.TapClient,
@@ -476,29 +481,27 @@ func NewHTTPSServer(
 		return nil, nil, err
 	}
 
-	srv := &grpcOverHTTPSServer{client}
-
 	cm, err := k8sAPI.Client.CoreV1().
 		ConfigMaps("kube-system").
 		Get(aggregationLayerConfigMapName, metav1.GetOptions{})
 
 	if err != nil {
-		return nil, nil, errors.New(fmt.Sprintf("Failed to load [%s] config: %s", aggregationLayerConfigMapName, err))
+		return nil, nil, fmt.Errorf("Failed to load [%s] config: %s", aggregationLayerConfigMapName, err)
 	}
 
 	rootCA, err := pkgTls.GenerateRootCAWithDefaults("linkerd-tap.linkerd.svc")
 	if err != nil {
-		return nil, nil, errors.New(fmt.Sprintf("Failed to create Root CA: %s", err.Error()))
+		return nil, nil, fmt.Errorf("Failed to create Root CA: %s", err)
 	}
 
 	clientCaPem, ok := cm.Data["requestheader-client-ca-file"]
 	if !ok {
-		return nil, nil, errors.New(fmt.Sprintf("No client CA cert available for apiextension-server"))
+		return nil, nil, fmt.Errorf("No client CA cert available for apiextension-server")
 	}
 
 	tlsCfg, err := tlsConfig(rootCA, "linkerd-tap", controllerNamespace, clientCaPem)
 	if err != nil {
-		return nil, nil, errors.New(fmt.Sprintf("Failed to create TLS config: %s", err.Error()))
+		return nil, nil, fmt.Errorf("Failed to create TLS config: %s", err)
 	}
 
 	config, err := pkgK8s.GetConfig(kubeConfig, "")
@@ -507,6 +510,10 @@ func NewHTTPSServer(
 	}
 
 	registrator, err := aggClientSet.NewForConfig(config)
+	if err != nil {
+		log.Errorf("Unable to create API aggregator clientset from config: %s", err)
+	}
+
 	registration, err := registrator.ApiregistrationV1().APIServices().Get("v1alpha1.tap.linkerd.io", metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Unable to get registration: %s", err)
@@ -553,6 +560,14 @@ func NewHTTPSServer(
 		}
 	}
 
+	allowedNames, ok := cm.Data["requestheader-allowed-names"]
+	if !ok {
+		return nil, nil, fmt.Errorf("No CN found in [%s]", aggregationLayerConfigMapName)
+	}
+
+	commonNameList := parseAllowedNames(allowedNames)
+	srv := &grpcOverHTTPSServer{client, commonNameList, k8sAPI.Client}
+
 	s := &http.Server{
 		Addr:      addr,
 		Handler:   srv,
@@ -561,29 +576,107 @@ func NewHTTPSServer(
 	return s, lis, nil
 }
 
-func registerApiExtension() {
+func parseAllowedNames(allowedNames string) []string {
+	if allowedNames == "" || allowedNames == "[]" {
+		return []string{}
+	}
 
+	allowedNames = strings.TrimPrefix(allowedNames, "[")
+	allowedNames = strings.TrimSuffix(allowedNames, "]")
+
+	var commonNameList []string
+	quotedCommonNameList := strings.Split(allowedNames, ",")
+	for i, cn := range quotedCommonNameList {
+		cn = strings.TrimPrefix(cn, "\"")
+		cn = strings.TrimSuffix(cn, "\"")
+		quotedCommonNameList[i] = cn
+	}
+	return commonNameList
 }
 
 func (s *grpcOverHTTPSServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if len(req.TLS.PeerCertificates) == 0 {
-		w.WriteHeader(http.StatusForbidden)
-	}
-
-	user := req.Header.Get("X-Remote-User")
-	group := req.Header.Get("X-Remote-Group")
-
-	log.Errorf("Received authorized request from [%s] in group [%s]", user, group)
-	log.Errorf("%d", len(req.TLS.PeerCertificates))
-	if len(req.TLS.PeerCertificates) > 0 {
+	var validCN string
+	if len(s.allowedCommonNames) > 0 {
 		for _, clientCert := range req.TLS.PeerCertificates {
-			log.Errorf("Client Cert CN: %s", clientCert.Subject.CommonName)
+			for _, cn := range s.allowedCommonNames {
+				if cn == clientCert.Subject.CommonName {
+					validCN = clientCert.Subject.CommonName
+				}
+			}
 		}
-	} else {
-		log.Errorf("No peer certs :(")
 	}
-	fmt.Println("Ok")
 
+	if validCN != "" {
+		log.Printf("Valid CN: %s\n", validCN)
+	}
+
+	switch req.Method {
+	case "DELETE":
+		log.Println("RECEIVED DELETE METHOD. DO STUFF HERE!!!!")
+	case "GET":
+		http.Error(w, "Received GET request", http.StatusBadRequest)
+	case "POST":
+		user := req.Header.Get("X-Remote-User")
+		group := req.Header.Get("X-Remote-Group")
+		log.Printf("Checking auth for user [%s] in group [%s]", user, group)
+		err := pkgK8s.ResourceAuthzForUser(
+			s.k8sClient,
+			"",
+			"create",
+			"tap.linkerd.io",
+			"v1alpha1",
+			"tap",
+			user,
+			[]string{group},
+		)
+
+		if err != nil {
+			protohttp.WriteErrorToHTTPResponse(w, err)
+		}
+
+		flushableWriter, err := protohttp.NewStreamingWriter(w)
+		if err != nil {
+			protohttp.WriteErrorToHTTPResponse(w, err)
+		}
+
+		var protoReq public.TapByResourceRequest
+		err = protohttp.HTTPRequestToProto(req, &protoReq)
+		if err != nil {
+			protohttp.WriteErrorToHTTPResponse(w, err)
+			return
+		}
+		s.tapStream(req.Context(), &protoReq, flushableWriter)
+	default:
+		http.Error(w, "Unknown Request", http.StatusBadRequest)
+	}
+
+}
+
+func (s *grpcOverHTTPSServer) tapStream(ctx context.Context, tapReq *public.TapByResourceRequest, f protohttp.FlushableResponseWriter) {
+	client, err := s.tapClient.TapByResource(ctx, tapReq)
+	if err != nil {
+		protohttp.WriteErrorToHTTPResponse(f, err)
+		return
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info("Received Done context in Tap Stream")
+			return
+		default:
+			event, err := client.Recv()
+			if err != nil {
+				return
+			}
+			err = protohttp.WriteProtoToHTTPResponse(f, event)
+			if err != nil {
+				protohttp.WriteErrorToHTTPResponse(f, err)
+				return
+			}
+			f.Flush()
+		}
+	}
 }
 
 func tlsConfig(rootCA *pkgTls.CA, name, controllerNamespace, clientCAPem string) (*tls.Config, error) {

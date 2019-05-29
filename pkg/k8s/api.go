@@ -3,6 +3,7 @@ package k8s
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/linkerd/linkerd2/pkg/prometheus"
@@ -118,6 +119,15 @@ func (kubeAPI *KubernetesAPI) GetPodsByNamespace(namespace string) ([]corev1.Pod
 		return nil, err
 	}
 	return podList.Items, nil
+}
+
+// URLFor generates a URL based on the Kubernetes config.
+func (kubeAPI *KubernetesAPI) URLFor(namespace, path string) (*url.URL, error) {
+	return generateKubernetesAPIURLFor(kubeAPI.Host, namespace, path)
+}
+
+func (kubeAPI *KubernetesAPI) HostName() string {
+	return kubeAPI.Host
 }
 
 // GetReplicaSets returns all replicasets in a given namespace
