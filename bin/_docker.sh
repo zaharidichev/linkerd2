@@ -45,6 +45,7 @@ docker_build() {
     docker build $rootdir \
         -t "$repo:$tag" \
         -f "$file" \
+        --load \
         $extra \
         > "$output"
 
