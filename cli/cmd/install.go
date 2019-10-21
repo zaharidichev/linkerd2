@@ -360,7 +360,7 @@ control plane.`,
 				}
 				os.Exit(1)
 			}
-			
+
 			return installRunE(options, "", flags)
 		},
 	}
@@ -1046,7 +1046,7 @@ func loadExternalIssuerData() (*externalIssuerData, error) {
 func (idopts *installIdentityOptions) verifyCred(creds *tls.Cred, trustAnchors string) error {
 	roots, err := tls.DecodePEMCertPool(trustAnchors)
 	if err != nil {
-		return  err
+		return err
 	}
 
 	if err := creds.Verify(roots, idopts.issuerName()); err != nil {
