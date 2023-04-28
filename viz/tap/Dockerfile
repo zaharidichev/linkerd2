@@ -22,7 +22,8 @@ COPY viz/tap viz/tap
 COPY viz/pkg viz/pkg
 
 ARG TARGETARCH
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -o /out/tap -tags prod -mod=readonly -ldflags "-s -w" ./viz/tap/cmd
+ARG GO_EXPERIMENTS=none
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH GOEXPERIMENT=$GO_EXPERIMENTS go build -o /out/tap -tags prod -mod=readonly -ldflags "-s -w" ./viz/tap/cmd
 
 ## package runtime
 FROM scratch

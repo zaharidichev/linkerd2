@@ -23,7 +23,8 @@ COPY multicluster multicluster
 # TODO: `go generate` does not honor -mod=readonly
 RUN go generate -mod=readonly ./pkg/charts/static
 ARG TARGETARCH
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -o /out/controller -tags prod -mod=readonly -ldflags "-s -w" ./controller/cmd
+ARG GO_EXPERIMENTS=none
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH GOEXPERIMENT=$GO_EXPERIMENTS go build -o /out/controller -tags prod -mod=readonly -ldflags "-s -w" ./controller/cmd
 
 ## package runtime
 FROM scratch

@@ -18,7 +18,8 @@ COPY viz/metrics-api viz/metrics-api
 COPY viz/pkg viz/pkg
 
 ARG TARGETARCH
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -o /out/metrics-api -tags prod -mod=readonly -ldflags "-s -w" ./viz/metrics-api/cmd
+ARG GO_EXPERIMENTS=none
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH GOEXPERIMENT=$GO_EXPERIMENTS go build -o /out/metrics-api -tags prod -mod=readonly -ldflags "-s -w" ./viz/metrics-api/cmd
 
 ## package runtime
 FROM scratch

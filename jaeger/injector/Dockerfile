@@ -19,7 +19,8 @@ COPY controller controller
 COPY charts/partials charts/partials
 
 ARG TARGETARCH
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -o /out/injector -tags prod -mod=readonly -ldflags "-s -w" ./jaeger/injector/cmd
+ARG GO_EXPERIMENTS=none
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH GOEXPERIMENT=$GO_EXPERIMENTS go build -o /out/injector -tags prod -mod=readonly -ldflags "-s -w" ./jaeger/injector/cmd
 
 ## package runtime
 FROM scratch

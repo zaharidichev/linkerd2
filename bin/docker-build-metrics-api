@@ -16,5 +16,5 @@ rootdir=$( cd "$bindir"/.. && pwd )
 . "$bindir"/_tag.sh
 
 dockerfile=$rootdir/viz/metrics-api/Dockerfile
-docker_build metrics-api "${TAG:-$(head_root_tag)}" "$dockerfile"
+docker_build metrics-api "${TAG:-$(head_root_tag)}" "$dockerfile" --build-arg GO_EXPERIMENTS="${GO_EXPERIMENTS:-none}"
 

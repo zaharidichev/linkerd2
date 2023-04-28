@@ -6,6 +6,10 @@ inputs:
     description: The docker registry used to tag the images
     required: false
     default: cr.l5d.io/linkerd
+  docker-repo:
+    description: The docker repo used to push the images to
+    required: false
+    default: ghcr.io
   docker-target:
     description: The OS-arch the docker build will be targeted to
     required: false
@@ -14,11 +18,14 @@ inputs:
     description: Whether to push the built images to the registry
     required: false
     default: ''
-  docker-ghcr-username:
-    description: GH username under which to push images
+  docker-username:
+    description: Username under which to push images
     required: false
-  docker-ghcr-pat:
-    description: GH PAT for docker-ghcr-username
+  docker-password:
+    description: Password for docker-username
+    required: false
+  docker-go-experiments:
+    description:  A comma-separated list of golang experiment names.
     required: false
   component:
     description: Component to build
@@ -46,11 +53,12 @@ runs:
         DOCKER_REGISTRY: ${{ inputs.docker-registry }}
         DOCKER_TARGET: ${{ inputs.docker-target }}
         DOCKER_PUSH: ${{ inputs.docker-push }}
+        GO_EXPERIMENTS: ${{ inputs.docker-go-experiments }}
         TAG: ${{ inputs.tag }}
       shell: bash
       run: |
         if [[ -n "$DOCKER_PUSH" ]];then
-          echo "${{ inputs.docker-ghcr-pat }}" | docker login ghcr.io -u "${{ inputs.docker-ghcr-username }}" --password-stdin
+          echo "${{ inputs.docker-password }}" | docker login "${{ inputs.docker-repo }}" -u "${{ inputs.docker-username }}" --password-stdin
         fi
         bin/docker-build-${{ inputs.component }}
 

@@ -16,5 +16,5 @@ rootdir=$( cd "$bindir"/.. && pwd )
 . "$bindir"/_tag.sh
 
 dockerfile=$rootdir/jaeger/injector/Dockerfile
-docker_build jaeger-webhook "${TAG:-$(head_root_tag)}" "$dockerfile" --build-arg LINKERD_VERSION="${TAG:-$(head_root_tag)}"
+docker_build jaeger-webhook "${TAG:-$(head_root_tag)}" "$dockerfile" --build-arg LINKERD_VERSION="${TAG:-$(head_root_tag)}" --build-arg GO_EXPERIMENTS="${GO_EXPERIMENTS:-none}"
 
